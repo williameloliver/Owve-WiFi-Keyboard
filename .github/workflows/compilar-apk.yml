@@ -1,0 +1,33 @@
+name: Compilar APK Android OWVE
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Android/**'
+      - '.github/workflows/compilar-apk.yml'
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v4
+      - name: Preparar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Preparar Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Instalar SDK de Android 14
+        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+      - name: Gradle 8.6
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.6'
+      - name: Construir APK
+        run: cd Android && gradle assembleDebug --no-daemon
+      - name: Adjuntar APK descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: OWVE-WiFi-Keyboard-Android-APK
+          path: Android/app/build/outputs/apk/debug/*.apk

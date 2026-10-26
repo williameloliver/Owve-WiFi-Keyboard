@@ -1,0 +1,85 @@
+OWVE WIFI KEYBOARD v1.0 — COMPAQ WINDOWS XP -> HONOR PAD X8a
+============================================================
+
+OBJETIVO
+Enviar exclusivamente pulsaciones de teclado a Android por Wi-Fi local,
+sin mostrar la pantalla, manejar el raton o instalar controladores.
+
+ENTREGABLES
+- Windows_XP/OWVE_Keyboard_XP.exe : programa nativo de 32 bits (8704 bytes).
+- Windows_XP/OWVE_Keyboard_XP.c   : codigo fuente Win32.
+- Android/                       : proyecto fuente completo (Java/Gradle)
+- .github/workflows/             : alternativa para compilar el APK en GitHub.
+
+ESTADO DE PRUEBAS
+- Windows XP: EXE compilado; cabecera PE32 validada con version objetivo 5.01.
+  Solo importa KERNEL32.dll, USER32.dll y WS2_32.dll.
+  NO ha sido ejecutado en un Windows XP real durante esta entrega.
+- Android: codigo del proyecto terminado, pero SIN APK: no habia SDK Android
+  disponible en el entorno de compilacion. Requiere compilarlo y probarlo.
+- No se ha podido probar la conexion real entre ambos equipos.
+
+INSTALACION EN ANDROID (una vez compilado el APK)
+1. Instala el APK en la HONOR Pad X8a.
+2. Abre la aplicacion OWVE WiFi Keyboard y lee la IP y el PIN de 6 digitos.
+3. Pulsa '1. Habilitar teclado OWVE'. En Ajustes, habilitalo.
+   Android advertira que un metodo de entrada puede acceder al texto:
+   esta advertencia es normal para cualquier teclado de terceros.
+4. Vuelve a OWVE y pulsa '2. Seleccionar teclado OWVE'. Seleccionalo.
+5. Abre un campo donde quieras escribir (por ejemplo, el chat de una IA).
+   Se mostrara una barra pequena OWVE WiFi como teclado.
+6. No uses este teclado para introducir contrasenas; la app desactiva
+   la escritura remota en la mayoria de campos de contrasena.
+
+INSTALACION EN WINDOWS XP SP3
+1. Copia solamente OWVE_Keyboard_XP.exe al Compaq (no necesita instalador).
+2. Abre la aplicacion (Windows XP 32 bits).
+3. Introduce la IP mostrada por la tablet y su PIN de 6 digitos.
+4. Presiona 'Conectar por Wi-Fi'. La ventana se reduce a 150 x 96 pixeles.
+5. Selecciona esa ventanita para escribir en Android.
+6. Haz clic en otra ventana o usa Alt+Tab: el teclado vuelve a Windows.
+7. Haz clic en la ventanita OWVE de nuevo: el teclado escribe en Android.
+8. Cierra la ventanita para desconectar.
+
+COMO GENERAR EL APK (requiere un equipo moderno, NO Windows XP)
+Opcion A: con Android Studio y JDK 17.
+  1. Abre la carpeta 'Android' como proyecto Gradle en Android Studio.
+  2. Usa Android SDK Platform 34 (Android 14), Gradle 8.6 y JDK 17.
+     Android Gradle Plugin 8.4.2 esta especificado en build.gradle.
+  3. Sincroniza el proyecto y selecciona Build > Build APK(s).
+  4. Instala Android/app/build/outputs/apk/debug/app-debug.apk en la tablet.
+  Este proyecto usa el framework Android solamente, sin dependencias de UI.
+
+Opcion B: GitHub Actions.
+  1. Crea un repositorio en GitHub y sube el contenido de esta carpeta.
+  2. Abre Actions > 'Compilar APK Android OWVE' > Run workflow.
+  3. Descarga el artifact 'OWVE-WiFi-Keyboard-Android-APK' al finalizar.
+  La ejecucion de Actions necesita una cuenta/repositorio y acceso a Internet.
+
+TECLAS SOPORTADAS
+- Texto Unicode (incluye tildes y eñes del teclado de XP).
+- Espacio, Enter, Retroceso, Suprimir, Tab, cursores, Inicio, Fin,
+  Re Pag y Av Pag.
+- Ctrl+A (seleccionar todo), Ctrl+C, Ctrl+V y Ctrl+X operan sobre el
+  portapapeles de Android, NO comparten el portapapeles con Windows.
+- Ctrl+Z intenta deshacer (su soporte depende del editor de Android).
+- La tecla Alt+Tab sigue siendo un atajo local de Windows.
+
+CONEXION Y LIMITACIONES
+- Ambos equipos deben estar en la misma red local y poder comunicarse.
+- TCP IPv4 puerto 47621, PIN de seis cifras; sin servicios externos.
+- Si el router aisla los clientes Wi-Fi, hay que desactivar ese aislamiento.
+- El servidor Android escucha solo si el teclado OWVE esta activo como IME.
+- El cursor debe estar en un campo de texto de Android para recibir texto.
+- No puede inyectar texto fuera de campos de entrada; no es un mouse remoto.
+- El transporte no va cifrado: usar un Wi-Fi privado de confianza.
+- Se admite un cliente simultaneo y se requiere reconectar si cambia la IP.
+- La ventanita captura teclas solo cuando tiene el foco: no usa keylogger,
+  servicios de fondo en Windows ni hooks globales.
+
+CODIGO
+- Android: Java sin librerias de terceros.
+- Windows: Win32 puro, Winsock 2.2; el EXE fue compilado con Clang/LLD.
+- 'build_xp_linux.py' reproduce el ejecutable en un Linux con Clang/LLD.
+
+Nombre de proyecto: OWVE WiFi Keyboard (prototipo v1.0).
