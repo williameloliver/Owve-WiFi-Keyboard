@@ -17,7 +17,7 @@ jobs:
           distribution: temurin
           java-version: '17'
       - name: Preparar Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
       - name: Instalar SDK de Android 14
         run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
       - name: Gradle 8.6
