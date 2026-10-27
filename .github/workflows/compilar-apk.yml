@@ -1,33 +1,61 @@
-name: Compilar APK Android OWVE
+name: OWVE v1.3 - Android y Windows XP
+
 on:
   workflow_dispatch:
   push:
     paths:
       - 'Android/**'
+      - 'Windows_XP/**'
       - '.github/workflows/compilar-apk.yml'
+
+permissions:
+  contents: read
+
 jobs:
   android:
+    name: APK HONOR
     runs-on: ubuntu-latest
     steps:
       - name: Descargar codigo
         uses: actions/checkout@v4
-      - name: Preparar Java 17
+      - name: Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
       - name: Preparar Android SDK
         uses: android-actions/setup-android@v4
-      - name: Instalar SDK de Android 14
-        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+      - name: SDK Android 14
+        run: sdkmanager 'platforms;android-34' 'build-tools;34.0.0'
       - name: Gradle 8.6
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.6'
-      - name: Construir APK
-        run: cd Android && gradle assembleDebug --no-daemon
-      - name: Adjuntar APK descargable
+      - name: Compilar APK
+        working-directory: Android
+        run: gradle assembleDebug --no-daemon --stacktrace
+      - name: Entregar APK
         uses: actions/upload-artifact@v4
         with:
-          name: OWVE-WiFi-Keyboard-Android-APK
+          name: OWVE-Android-v1_3-APK
           path: Android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+  windows_xp:
+    name: EXE Windows XP SP3
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v4
+      - name: Preparar compilador XP
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y clang lld
+      - name: Compilar ejecutable nativo x86
+        run: python3 Windows_XP/build_xp_linux.py
+      - name: Entregar EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: OWVE-Windows-XP-v1_3-EXE
+          path: Windows_XP/OWVE_Keyboard_XP.exe
+          if-no-files-found: error

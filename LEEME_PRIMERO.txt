@@ -1,85 +1,80 @@
-OWVE WIFI KEYBOARD v1.0 — COMPAQ WINDOWS XP -> HONOR PAD X8a
-============================================================
+OWVE WiFi Keyboard + Mouse 1.3 — ARRASTRE REAL
+================================================
+Windows XP Professional SP3 (32 bits) + HONOR Pad (Android 8.0+)
 
-OBJETIVO
-Enviar exclusivamente pulsaciones de teclado a Android por Wi-Fi local,
-sin mostrar la pantalla, manejar el raton o instalar controladores.
+QUE INCLUYE
+-----------
+Windows_XP/OWVE_Keyboard_XP.exe  - Aplicacion nativa XP ya compilada (14 KB aprox.)
+Windows_XP/OWVE_Keyboard_XP.c    - Codigo fuente Win32 puro
+Windows_XP/build_xp_linux.py    - Script de compilacion con Clang + LLD
+Android/                        - Proyecto Android Java para generar APK
+.github/workflows/compilar-apk.yml - Compila APK y EXE en GitHub Actions
 
-ENTREGABLES
-- Windows_XP/OWVE_Keyboard_XP.exe : programa nativo de 32 bits (8704 bytes).
-- Windows_XP/OWVE_Keyboard_XP.c   : codigo fuente Win32.
-- Android/                       : proyecto fuente completo (Java/Gradle)
-- .github/workflows/             : alternativa para compilar el APK en GitHub.
+NOVEDAD 1.3: MOUSE CON ARRASTRE
+------------------------------
+1) Doble clic en cuadro 'DOBLE CLIC = mouse tablet' de la ventana XP: captura mouse.
+2) Mueve el trackpad/mouse: desplaza puntero en la HONOR.
+3) Clic izquierdo breve: toque normal.
+4) MANTEN CLIC IZQUIERDO + MUEVE: selecciona texto, arrastra iconos u objetos.
+5) SUELTA CLIC IZQUIERDO: termina el arrastre (se levanta el dedo Android).
+6) Clic derecho: pulsacion larga (como en 1.2).
+7) Rueda: desplazamiento vertical (como en 1.2).
+8) Windows + X: suelta el mouse y devuelve control inmediato a Windows.
+9) Al perder foco, desconectar o cerrar, manda liberacion remota.
+10) Mientras se arrastra, XP manda latidos cada segundo; Android tiene un
+    tiempo maximo de 5 segundos sin informacion antes de liberar el dedo.
+11) Botones -/+ ajustan sensibilidad entre 0,50x y 4,00x.
+12) Conserva teclado remoto y opcion de pantalla activa de version 1.1.
 
-ESTADO DE PRUEBAS
-- Windows XP: EXE compilado; cabecera PE32 validada con version objetivo 5.01.
-  Solo importa KERNEL32.dll, USER32.dll y WS2_32.dll.
-  NO ha sido ejecutado en un Windows XP real durante esta entrega.
-- Android: codigo del proyecto terminado, pero SIN APK: no habia SDK Android
-  disponible en el entorno de compilacion. Requiere compilarlo y probarlo.
-- No se ha podido probar la conexion real entre ambos equipos.
+IMPORTANTE: actualizar las DOS aplicaciones a v1.3 para usar arrastre.
+Si instalas solo el APK nuevo, el EXE anterior seguira dando clics normales.
+Si instalas solo el EXE nuevo, el APK anterior no entendera DOWN/UP.
 
-INSTALACION EN ANDROID (una vez compilado el APK)
-1. Instala el APK en la HONOR Pad X8a.
-2. Abre la aplicacion OWVE WiFi Keyboard y lee la IP y el PIN de 6 digitos.
-3. Pulsa '1. Habilitar teclado OWVE'. En Ajustes, habilitalo.
-   Android advertira que un metodo de entrada puede acceder al texto:
-   esta advertencia es normal para cualquier teclado de terceros.
-4. Vuelve a OWVE y pulsa '2. Seleccionar teclado OWVE'. Seleccionalo.
-5. Abre un campo donde quieras escribir (por ejemplo, el chat de una IA).
-   Se mostrara una barra pequena OWVE WiFi como teclado.
-6. No uses este teclado para introducir contrasenas; la app desactiva
-   la escritura remota en la mayoria de campos de contrasena.
+CONEXION
+--------
+- Ambas maquinas en la misma red Wi-Fi local.
+- Puerto TCP 47621, PIN de 6 digitos mostrado en la HONOR.
+- En Android: habilita/selecciona teclado OWVE y activa servicio de
+  accesibilidad 'OWVE Mouse remoto'.
+- No se necesita ADB, Bluetooth, mirroring ni Internet para usarlo.
+- Android 8.0+ (API 26) necesario para arrastre continuo (continueStroke).
 
-INSTALACION EN WINDOWS XP SP3
-1. Copia solamente OWVE_Keyboard_XP.exe al Compaq (no necesita instalador).
-2. Abre la aplicacion (Windows XP 32 bits).
-3. Introduce la IP mostrada por la tablet y su PIN de 6 digitos.
-4. Presiona 'Conectar por Wi-Fi'. La ventana se reduce a 150 x 96 pixeles.
-5. Selecciona esa ventanita para escribir en Android.
-6. Haz clic en otra ventana o usa Alt+Tab: el teclado vuelve a Windows.
-7. Haz clic en la ventanita OWVE de nuevo: el teclado escribe en Android.
-8. Cierra la ventanita para desconectar.
+ACTUALIZAR DESDE CODESPACES
+---------------------------
+1) Sube OWVE_WiFi_Mouse_Keyboard_v1_3.zip a la raiz del repositorio GitHub.
+2) En la terminal de Codespaces, en la raiz del proyecto:
+   git pull --ff-only
+   unzip -o OWVE_WiFi_Mouse_Keyboard_v1_3.zip -d .
+   git add Android Windows_XP .github/workflows/compilar-apk.yml LEEME_PRIMERO.txt
+   git commit -m "OWVE v1.3 arrastre continuo"
+   git push
+3) Ve a GitHub > Actions > OWVE v1.3 - Android y Windows XP.
+4) Descarga los artifacts 'OWVE-Android-v1_3-APK' y 'OWVE-Windows-XP-v1_3-EXE'.
+5) Instala APK en HONOR y usa nuevo EXE en Windows XP.
 
-COMO GENERAR EL APK (requiere un equipo moderno, NO Windows XP)
-Opcion A: con Android Studio y JDK 17.
-  1. Abre la carpeta 'Android' como proyecto Gradle en Android Studio.
-  2. Usa Android SDK Platform 34 (Android 14), Gradle 8.6 y JDK 17.
-     Android Gradle Plugin 8.4.2 esta especificado en build.gradle.
-  3. Sincroniza el proyecto y selecciona Build > Build APK(s).
-  4. Instala Android/app/build/outputs/apk/debug/app-debug.apk en la tablet.
-  Este proyecto usa el framework Android solamente, sin dependencias de UI.
+PRUEBAS RECOMENDADAS
+-------------------
+1) Abrir un bloc de notas Android; seleccionar texto sosteniendo clic y mover.
+2) Arrastrar un icono del escritorio HONOR o mover una barra desplazable.
+3) Soltar el boton en XP; el objeto deja de desplazarse.
+4) Probar Win+X en mitad de arrastre; debe restaurar cursor Windows.
+5) Probar desconexion durante arrastre; Android debe liberar el gesto.
+6) Comprobar clic, teclado, rueda, sensibilidad y pantalla activa.
 
-Opcion B: GitHub Actions.
-  1. Crea un repositorio en GitHub y sube el contenido de esta carpeta.
-  2. Abre Actions > 'Compilar APK Android OWVE' > Run workflow.
-  3. Descarga el artifact 'OWVE-WiFi-Keyboard-Android-APK' al finalizar.
-  La ejecucion de Actions necesita una cuenta/repositorio y acceso a Internet.
+FIRMA APK
+---------
+La firma debug de GitHub Actions puede variar. Si aparece error de firma,
+desinstala el APK anterior antes de instalar v1.3; tendras que volver a
+habilitar el IME y Accesibilidad y comprobar el PIN nuevo. En un futuro,
+conviene usar una firma estable de release para actualizar sin reinstalar.
 
-TECLAS SOPORTADAS
-- Texto Unicode (incluye tildes y eñes del teclado de XP).
-- Espacio, Enter, Retroceso, Suprimir, Tab, cursores, Inicio, Fin,
-  Re Pag y Av Pag.
-- Ctrl+A (seleccionar todo), Ctrl+C, Ctrl+V y Ctrl+X operan sobre el
-  portapapeles de Android, NO comparten el portapapeles con Windows.
-- Ctrl+Z intenta deshacer (su soporte depende del editor de Android).
-- La tecla Alt+Tab sigue siendo un atajo local de Windows.
-
-CONEXION Y LIMITACIONES
-- Ambos equipos deben estar en la misma red local y poder comunicarse.
-- TCP IPv4 puerto 47621, PIN de seis cifras; sin servicios externos.
-- Si el router aisla los clientes Wi-Fi, hay que desactivar ese aislamiento.
-- El servidor Android escucha solo si el teclado OWVE esta activo como IME.
-- El cursor debe estar en un campo de texto de Android para recibir texto.
-- No puede inyectar texto fuera de campos de entrada; no es un mouse remoto.
-- El transporte no va cifrado: usar un Wi-Fi privado de confianza.
-- Se admite un cliente simultaneo y se requiere reconectar si cambia la IP.
-- La ventanita captura teclas solo cuando tiene el foco: no usa keylogger,
-  servicios de fondo en Windows ni hooks globales.
-
-CODIGO
-- Android: Java sin librerias de terceros.
-- Windows: Win32 puro, Winsock 2.2; el EXE fue compilado con Clang/LLD.
-- 'build_xp_linux.py' reproduce el ejecutable en un Linux con Clang/LLD.
-
-Nombre de proyecto: OWVE WiFi Keyboard (prototipo v1.0).
+SEGURIDAD Y LIMITACIONES
+------------------------
+- Trafico TCP local sin cifrado: usar solamente en una red Wi-Fi confiable.
+- Se solicita Accesibilidad exclusivamente para emular toques y mostrar cursor;
+  no se inspecciona el contenido de otras aplicaciones.
+- En algunas apps Android, acciones especiales de arrastre pueden diferir de
+  las realizadas por un mouse USB fisico (gestos tactiles vs. boton fisico).
+- El ejecutable XP fue compilado y verificado como PE32 para NT 5.1.
+- Se verifico sintaxis Java/XML; APK aun requiere compilacion en Actions.
+- El comportamiento real del arrastre en HONOR necesita prueba de hardware.

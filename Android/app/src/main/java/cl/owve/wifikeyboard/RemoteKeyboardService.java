@@ -2,6 +2,8 @@ package cl.owve.wifikeyboard;
 
 import android.inputmethodservice.InputMethodService;
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.os.PowerManager;
 import android.graphics.Color;
 import android.os.Handler;
 import android.os.Looper;
@@ -16,29 +18,70 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.net.SocketTimeoutException;
-import java.nio.charset.StandardCharsets;
 
 public class RemoteKeyboardService extends InputMethodService {
-    private volatile boolean stopping=false;
     private volatile boolean passwordField=false;
-    private volatile Socket connectedSocket;
-    private volatile ServerSocket serverSocket;
-    private Thread serverThread;
     private final Handler ui=new Handler(Looper.getMainLooper());
     private TextView indicator;
+    private View inputBar;
+
+    // La escritura por InputConnection no actualiza el temporizador de pantalla
+    // del sistema. Este bloqueo temporal solo se activa al recibir una tecla
+    // valida para un campo de texto y se libera tras la inactividad.
+    private static final long KEYBOARD_IDLE_MS = 120000L;
+    private PowerManager.WakeLock typingScreenLock;
+    private SharedPreferences settings;
+    private final Runnable releaseScreenAfterIdle = this::releaseScreenLock;
+    private final SharedPreferences.OnSharedPreferenceChangeListener settingsChanged =
+            (preferences, key) -> {
+                if ("keep_screen_on_typing".equals(key)
+                        && !preferences.getBoolean(key, true)) {
+                    ui.post(this::stopScreenTimer);
+                }
+            };
+
+    private void keepScreenOnWhileTyping() {
+        // Solo se llama desde el hilo UI, despues de verificar InputConnection.
+        if (settings == null || !settings.getBoolean("keep_screen_on_typing", true)) return;
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        // No encender una pantalla que el usuario haya apagado manualmente.
+        if (pm == null || !pm.isInteractive()) return;
+        // Si la barra del IME esta visible, utilizar tambien el metodo
+        // recomendado para ventanas, sin permisos adicionales.
+        if (inputBar != null) inputBar.setKeepScreenOn(true);
+        try {
+            if (typingScreenLock == null) {
+                typingScreenLock = pm.newWakeLock(
+                        PowerManager.SCREEN_BRIGHT_WAKE_LOCK,
+                        "owve:WiFiKeyboardTyping");
+                typingScreenLock.setReferenceCounted(false);
+            }
+            if (!typingScreenLock.isHeld()) typingScreenLock.acquire();
+            ui.removeCallbacks(releaseScreenAfterIdle);
+            ui.postDelayed(releaseScreenAfterIdle, KEYBOARD_IDLE_MS);
+        } catch (SecurityException ignored) {
+            // El teclado sigue escribiendo, aunque el fabricante bloquee wake locks.
+        }
+    }
+
+    private void releaseScreenLock() {
+        if (inputBar != null) inputBar.setKeepScreenOn(false);
+        if (typingScreenLock != null && typingScreenLock.isHeld()) {
+            try { typingScreenLock.release(); } catch (RuntimeException ignored) {}
+        }
+    }
+
+    private void stopScreenTimer() {
+        ui.removeCallbacks(releaseScreenAfterIdle);
+        releaseScreenLock();
+    }
 
     @Override public void onCreate() {
         super.onCreate();
-        stopping=false;
-        serverThread=new Thread(this::acceptLoop, "OWVE-Keyboard-WiFi");
-        serverThread.start();
+        settings = getSharedPreferences("owve_keyboard", MODE_PRIVATE);
+        settings.registerOnSharedPreferenceChangeListener(settingsChanged);
+        activeKeyboard = this;
+        SessionServer.ensureStarted(this);
     }
 
     @Override public View onCreateInputView() {
@@ -47,6 +90,7 @@ public class RemoteKeyboardService extends InputMethodService {
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setPadding(12,2,8,2);
         bar.setBackgroundColor(Color.rgb(34,42,48));
+        inputBar=bar;
         indicator=new TextView(this);
         indicator.setTextColor(Color.WHITE);
         indicator.setTextSize(13);
@@ -81,71 +125,31 @@ public class RemoteKeyboardService extends InputMethodService {
                    (klass==InputType.TYPE_CLASS_NUMBER && kind==InputType.TYPE_NUMBER_VARIATION_PASSWORD);
     }
 
-    private void acceptLoop() {
-        try (ServerSocket ss=new ServerSocket()) {
-            ss.setReuseAddress(true);
-            ss.bind(new InetSocketAddress(Config.PORT));
-            serverSocket=ss;
-            ss.setSoTimeout(1200);
-            showStatus("esperando al Compaq");
-            while(!stopping) {
-                try {
-                    Socket s=ss.accept();
-                    connectedSocket=s;
-                    try { runClient(s); }
-                    finally { try { s.close(); } catch(IOException ignored){} connectedSocket=null; }
-                    if(!stopping) showStatus("esperando al Compaq");
-                } catch(SocketTimeoutException ignored) {
-                    // Permite detener el servicio aunque nadie este conectado.
-                } catch(IOException e) {
-                    if(!stopping) showStatus("conexion interrumpida");
-                }
-            }
-        } catch(IOException e) {
-            if(!stopping) showStatus("puerto " + Config.PORT + " ocupado");
-        } finally { serverSocket=null; }
+    static volatile RemoteKeyboardService activeKeyboard;
+    static void deliver(String message) {
+        RemoteKeyboardService im = activeKeyboard;
+        if (im == null) return;
+        if (message.startsWith("T "))
+            im.ui.post(() -> im.insertText(message.substring(2)));
+        else if (message.startsWith("K "))
+            im.ui.post(() -> im.applyKey(message.substring(2)));
     }
-
-    private String readLineBounded(BufferedReader r, int limit) throws IOException {
-        StringBuilder sb=new StringBuilder();
-        int ch;
-        while((ch=r.read())!=-1) {
-            if(ch=='\n') return sb.toString();
-            if(ch!='\r') sb.append((char)ch);
-            if(sb.length()>limit) throw new IOException("linea demasiado larga");
-        }
-        return null;
+    static void mouseActivity() {
+        RemoteKeyboardService im = activeKeyboard;
+        if (im != null) im.ui.post(im::keepScreenOnWhileTyping);
     }
-
-    private void runClient(Socket s) throws IOException {
-        s.setSoTimeout(8000);
-        s.setTcpNoDelay(true);
-        BufferedReader input=new BufferedReader(new InputStreamReader(s.getInputStream(),StandardCharsets.UTF_8));
-        String auth=readLineBounded(input,100);
-        if(!("AUTH "+Config.pin(this)).equals(auth)) {
-            s.getOutputStream().write("NO\n".getBytes(StandardCharsets.US_ASCII));
-            return;
-        }
-        s.getOutputStream().write("OK\n".getBytes(StandardCharsets.US_ASCII));
-        s.getOutputStream().flush();
-        s.setSoTimeout(0); // La ventana de Windows puede quedar inactiva sin desconectar.
-        showStatus("Compaq conectado");
-        String command;
-        while(!stopping && (command=readLineBounded(input,1024))!=null) {
-            if(command.startsWith("T ")) {
-                String value=command.substring(2);
-                if(!value.isEmpty()) ui.post(() -> insertText(value));
-            } else if(command.startsWith("K ")) {
-                String value=command.substring(2);
-                ui.post(() -> applyKey(value));
-            }
-        }
+    static void connected(boolean yes) {
+        RemoteKeyboardService im = activeKeyboard;
+        if (im != null) im.showStatus(yes ? "Compaq conectado" : "esperando al Compaq");
     }
 
     private void insertText(String text) {
         if(passwordField) return;
         InputConnection ic=getCurrentInputConnection();
-        if(ic!=null) ic.commitText(text,1);
+        if(ic!=null) {
+            keepScreenOnWhileTyping();
+            ic.commitText(text,1);
+        }
     }
 
     private void pressKey(InputConnection ic,int keyCode) {
@@ -157,6 +161,7 @@ public class RemoteKeyboardService extends InputMethodService {
         if(passwordField) return;
         InputConnection ic=getCurrentInputConnection();
         if(ic==null) return;
+        keepScreenOnWhileTyping();
         switch(key) {
             case "BS":
                 CharSequence selected=ic.getSelectedText(0);
@@ -190,10 +195,18 @@ public class RemoteKeyboardService extends InputMethodService {
         }
     }
 
+    @Override public void onFinishInput() {
+        stopScreenTimer();
+        super.onFinishInput();
+    }
+
     @Override public void onDestroy() {
-        stopping=true;
-        try { if(connectedSocket!=null) connectedSocket.close(); } catch(IOException ignored){}
-        try { if(serverSocket!=null) serverSocket.close(); } catch(IOException ignored){}
+        if(activeKeyboard == this) activeKeyboard = null;
+        stopScreenTimer();
+        // El mouse puede continuar en otras apps, incluso sin editor activo.
+        if (settings != null) {
+            settings.unregisterOnSharedPreferenceChangeListener(settingsChanged);
+        }
         super.onDestroy();
     }
 }
